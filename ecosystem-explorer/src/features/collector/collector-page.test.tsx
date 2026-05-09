@@ -167,8 +167,9 @@ describe("CollectorPage", () => {
     expect(useCollectorComponents).toHaveBeenCalledWith("9.9.9");
     expect(screen.getByRole("heading", { name: "Error loading data" })).toBeInTheDocument();
     expect(
-      screen.queryByText((_content, element) =>
-        element?.textContent?.replace(/\s+/g, " ").trim() === "Showing 0 components"
+      screen.queryByText(
+        (_content, element) =>
+          element?.textContent?.replace(/\s+/g, " ").trim() === "Showing 0 components"
       )
     ).not.toBeInTheDocument();
     expect(screen.queryByText("No components found")).not.toBeInTheDocument();
