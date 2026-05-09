@@ -46,7 +46,11 @@ const mockComponents: CollectorComponent[] = [
     ecosystem: "collector",
     type: "receiver",
     distribution: "core",
-    status: { stability: { stable: ["traces", "metrics", "logs"] } },
+    status: {
+      class: "receiver",
+      stability: { stable: ["traces", "metrics", "logs"] },
+      distributions: ["core"],
+    },
   },
   {
     id: "processor-batch",
@@ -56,7 +60,11 @@ const mockComponents: CollectorComponent[] = [
     ecosystem: "collector",
     type: "processor",
     distribution: "core",
-    status: { stability: { stable: ["traces", "metrics", "logs"] } },
+    status: {
+      class: "processor",
+      stability: { stable: ["traces", "metrics", "logs"] },
+      distributions: ["core"],
+    },
   },
 ];
 
