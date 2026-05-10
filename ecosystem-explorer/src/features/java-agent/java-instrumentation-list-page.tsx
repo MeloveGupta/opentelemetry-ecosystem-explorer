@@ -46,11 +46,16 @@ export function JavaInstrumentationListPage() {
 
   const resolvedVersion = versionParam && versionParam !== "latest" ? versionParam : "";
 
+  const isVersionValid =
+    !resolvedVersion ||
+    !versionsData ||
+    versionsData.versions.some((v) => v.version === resolvedVersion);
+
   const {
     data: instrumentations,
     loading: instrumentationsLoading,
     error,
-  } = useInstrumentations(resolvedVersion);
+  } = useInstrumentations(isVersionValid ? resolvedVersion : "");
 
   const [filters, setFilters] = useState<FilterState>({
     search: "",
@@ -145,6 +150,23 @@ export function JavaInstrumentationListPage() {
         <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-6 text-red-600 dark:text-red-400">
           <h3 className="mb-2 font-semibold">Error loading versions</h3>
           <p className="text-sm">{versionsError.message}</p>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  if (!isVersionValid) {
+    const latestUrl = "/java-agent/instrumentation/" + latestVersion;
+    return (
+      <PageContainer>
+        <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-6 text-red-600 dark:text-red-400">
+          <h3 className="mb-2 font-semibold">Version not found</h3>
+          <p className="text-sm">
+            Version &quot;{resolvedVersion}&quot; does not exist.{" "}
+            <a href={latestUrl} className="underline">
+              Go to latest ({latestVersion})
+            </a>
+          </p>
         </div>
       </PageContainer>
     );
