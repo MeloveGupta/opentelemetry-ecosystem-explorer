@@ -34,7 +34,8 @@ export async function loadVersionManifest(version: string): Promise<VersionManif
   const data = await fetchWithCache<VersionManifest>(
     `manifest-${version}`,
     `${BASE_PATH}/versions/${version}-index.json`,
-    STORES.METADATA
+    STORES.METADATA,
+    { validate: (d) => typeof d.version === "string" && typeof d.instrumentations === "object" }
   );
   if (!data) throw new Error(`Manifest for version ${version} returned null unexpectedly`);
   return data;
