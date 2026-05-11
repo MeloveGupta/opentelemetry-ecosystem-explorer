@@ -174,6 +174,7 @@ async function takeScreenshots() {
       // 1. Home page
       await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 10000 });
       await page.waitForSelector("h1", { state: "visible", timeout: 5000 });
+      await assertNoError(page, BASE_URL);
       await page.screenshot({ path: p("home") });
 
       // 2. Java agent instrumentation list
@@ -182,6 +183,7 @@ async function takeScreenshots() {
         timeout: 10000,
       });
       await settle(page);
+      await assertNoError(page, `${BASE_URL}/java-agent/instrumentation`);
       await page.screenshot({ path: p("instrumentation-list") });
 
       // 3. Java agent instrumentation detail - Details tab
@@ -193,10 +195,12 @@ async function takeScreenshots() {
 
       // 4. Telemetry tab (skipped gracefully if tabs aren't present in this branch)
       await clickTab(page, "Telemetry");
+      await assertNoError(page, detailUrl);
       await page.screenshot({ path: p("detail-telemetry"), fullPage: true });
 
       // 5. Configuration tab (skipped gracefully if tabs aren't present in this branch)
       await clickTab(page, "Configuration");
+      await assertNoError(page, detailUrl);
       await page.screenshot({ path: p("detail-configuration"), fullPage: true });
 
       // 6. Collector list
@@ -205,6 +209,7 @@ async function takeScreenshots() {
         timeout: 10000,
       });
       await settle(page);
+      await assertNoError(page, `${BASE_URL}/collector/components`);
       await page.screenshot({ path: p("collector-list") });
 
       // 7. Collector detail
