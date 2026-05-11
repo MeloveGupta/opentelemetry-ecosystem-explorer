@@ -19,8 +19,8 @@ import {
   type FilterState,
   InstrumentationFilterBar,
 } from "@/features/java-agent/components/instrumentation-filter-bar.tsx";
-import { useMemo, useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useMemo, useState, useEffect } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { X } from "lucide-react";
 import { InstrumentationGroupCard } from "@/features/java-agent/components/instrumentation-group-card.tsx";
 import { VersionSelector } from "@/features/java-agent/components/version-selector";
@@ -36,7 +36,8 @@ export function JavaInstrumentationListPage() {
 
   const latestVersion = versionsData?.versions.find((v) => v.is_latest)?.version ?? "";
 
-  const invalidVersionRef = useRef<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const invalidVersion = searchParams.get("redirectedFrom");
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const isVersionValid =
@@ -52,9 +53,9 @@ export function JavaInstrumentationListPage() {
       if (!versionParam || versionParam === "latest") {
         navigate(`/java-agent/instrumentation/${latestVersion}`, { replace: true });
       } else if (!isVersionValid) {
-        invalidVersionRef.current = versionParam;
-        setBannerDismissed(false);
-        navigate(`/java-agent/instrumentation/${latestVersion}`, { replace: true });
+        navigate(`/java-agent/instrumentation/${latestVersion}?redirectedFrom=${versionParam}`, {
+          replace: true,
+        });
       }
     }
   }, [versionParam, versionsData, latestVersion, navigate, isVersionValid]);
@@ -194,11 +195,11 @@ export function JavaInstrumentationListPage() {
       <div className="space-y-4">
         <BackButton />
 
-        {invalidVersionRef.current && !bannerDismissed && (
+        {invalidVersion && !bannerDismissed && (
           <div className="flex items-start justify-between gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-700 dark:text-yellow-400">
             <p>
-              Version &quot;{invalidVersionRef.current}&quot; was not found. Showing the latest
-              version ({latestVersion}) instead.
+              Version &quot;{invalidVersion}&quot; was not found. Showing the latest version (
+              {latestVersion}) instead.
             </p>
             <button
               onClick={() => setBannerDismissed(true)}
