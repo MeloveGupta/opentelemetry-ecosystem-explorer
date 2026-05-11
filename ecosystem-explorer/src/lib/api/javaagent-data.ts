@@ -35,7 +35,13 @@ export async function loadVersionManifest(version: string): Promise<VersionManif
     `manifest-${version}`,
     `${BASE_PATH}/versions/${version}-index.json`,
     STORES.METADATA,
-    { validate: (d) => typeof d.version === "string" && typeof d.instrumentations === "object" }
+    {
+      validate: (d) =>
+        typeof d.version === "string" &&
+        d.version === version &&
+        d.instrumentations !== null &&
+        typeof d.instrumentations === "object",
+    }
   );
   if (!data) throw new Error(`Manifest for version ${version} returned null unexpectedly`);
   return data;

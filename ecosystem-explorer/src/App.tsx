@@ -75,7 +75,11 @@ export default function App() {
           <ErrorBoundary>
             <Suspense
               fallback={
-                <div className="flex min-h-[400px] items-center justify-center">
+                <div
+                  className="flex min-h-[400px] items-center justify-center"
+                  role="status"
+                  aria-live="polite"
+                >
                   <div className="text-muted-foreground text-sm font-medium">Loading...</div>
                 </div>
               }

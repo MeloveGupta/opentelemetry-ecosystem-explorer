@@ -46,7 +46,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
       return (
         <div className="flex min-h-[400px] items-center justify-center p-8">
-          <div className="w-full max-w-lg rounded-lg border border-red-500/50 bg-red-500/10 p-6 text-red-600 dark:text-red-400">
+          <div
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+            className="w-full max-w-lg rounded-lg border border-red-500/50 bg-red-500/10 p-6 text-red-600 dark:text-red-400"
+          >
             <h2 className="mb-2 text-lg font-semibold">Something went wrong</h2>
             <p className="mb-4 text-sm">An unexpected error occurred. Try refreshing the page.</p>
             <button
