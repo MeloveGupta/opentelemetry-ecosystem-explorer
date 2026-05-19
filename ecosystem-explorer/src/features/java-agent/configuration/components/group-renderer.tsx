@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { useState, useMemo, type JSX } from "react";
+import { useState, type JSX } from "react";
 import type { GroupNode } from "@/types/configuration";
 import { useConfigurationBuilder } from "@/hooks/use-configuration-builder";
 import { getByPath, parsePath } from "@/lib/config-path";
@@ -57,13 +57,12 @@ export function GroupRenderer({
   }
 
   const { signal } = useSectionExpansion();
-  const signalExpanded = useMemo(() => {
-    if (!signal || !isTopLevel) return null;
-    if (signal.action === "expand") return enabled ? true : null;
-    if (signal.action === "collapse") return false;
-    return null;
-  }, [signal, isTopLevel, enabled]);
-  const resolvedExpanded = signalExpanded !== null ? signalExpanded : expanded;
+  const [lastNonce, setLastNonce] = useState<number | null>(null);
+  if (signal && isTopLevel && signal.nonce !== lastNonce) {
+    setLastNonce(signal.nonce);
+    if (signal.action === "expand" && enabled) setExpanded(true);
+    if (signal.action === "collapse") setExpanded(false);
+  }
 
   const value = getByPath(state.values, parsePath(path));
 
@@ -87,7 +86,7 @@ export function GroupRenderer({
           level="section"
           value={value}
           asGroup={false}
-          open={resolvedExpanded}
+          open={expanded}
           onOpenChange={setExpanded}
         >
           <FieldSection.Header>
