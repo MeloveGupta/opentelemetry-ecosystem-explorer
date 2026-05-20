@@ -15,32 +15,41 @@
  */
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 
-interface ExpansionSignal {
-  action: "expand" | "collapse";
-  nonce: number;
-}
+type BulkAction = "expand" | "collapse" | null;
 
 interface SectionExpansionContextValue {
   expandAll: () => void;
   collapseAll: () => void;
-  signal: ExpansionSignal | null;
+  bulkAction: BulkAction;
+  /** Overrides per section key set after a bulk action. */
+  overrides: Record<string, boolean>;
+  setOverride: (key: string, value: boolean) => void;
 }
 
 const SectionExpansionContext = createContext<SectionExpansionContextValue | null>(null);
 
 export function SectionExpansionProvider({ children }: { children: ReactNode }) {
-  const [signal, setSignal] = useState<ExpansionSignal | null>(null);
+  const [bulkAction, setBulkAction] = useState<BulkAction>(null);
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
 
   const expandAll = useCallback(() => {
-    setSignal((prev) => ({ action: "expand", nonce: (prev?.nonce ?? 0) + 1 }));
+    setBulkAction("expand");
+    setOverrides({});
   }, []);
 
   const collapseAll = useCallback(() => {
-    setSignal((prev) => ({ action: "collapse", nonce: (prev?.nonce ?? 0) + 1 }));
+    setBulkAction("collapse");
+    setOverrides({});
+  }, []);
+
+  const setOverride = useCallback((key: string, value: boolean) => {
+    setOverrides((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   return (
-    <SectionExpansionContext.Provider value={{ expandAll, collapseAll, signal }}>
+    <SectionExpansionContext.Provider
+      value={{ expandAll, collapseAll, bulkAction, overrides, setOverride }}
+    >
       {children}
     </SectionExpansionContext.Provider>
   );
@@ -49,12 +58,6 @@ export function SectionExpansionProvider({ children }: { children: ReactNode }) 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useSectionExpansion(): SectionExpansionContextValue {
   const ctx = useContext(SectionExpansionContext);
-  if (!ctx) {
-    return {
-      expandAll: () => {},
-      collapseAll: () => {},
-      signal: null,
-    };
-  }
+  if (!ctx) throw new Error("useSectionExpansion must be used within a SectionExpansionProvider");
   return ctx;
 }

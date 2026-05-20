@@ -56,13 +56,17 @@ export function GroupRenderer({
     if (enabled) setExpanded(true);
   }
 
-  const { signal } = useSectionExpansion();
-  const [lastNonce, setLastNonce] = useState<number | null>(null);
-  if (signal && isTopLevel && signal.nonce !== lastNonce) {
-    setLastNonce(signal.nonce);
-    if (signal.action === "expand" && enabled) setExpanded(true);
-    if (signal.action === "collapse") setExpanded(false);
-  }
+  const { bulkAction, overrides, setOverride } = useSectionExpansion();
+  const sectionKey = node.key;
+  const bulkOpen =
+    isTopLevel && sectionKey in overrides
+      ? overrides[sectionKey]
+      : isTopLevel && bulkAction === "expand" && enabled
+        ? true
+        : isTopLevel && bulkAction === "collapse"
+          ? false
+          : null;
+  const resolvedExpanded = bulkOpen !== null ? bulkOpen : expanded;
 
   const value = getByPath(state.values, parsePath(path));
 
@@ -86,8 +90,11 @@ export function GroupRenderer({
           level="section"
           value={value}
           asGroup={false}
-          open={expanded}
-          onOpenChange={setExpanded}
+          open={resolvedExpanded}
+          onOpenChange={(next) => {
+            if (isTopLevel) setOverride(sectionKey, next);
+            setExpanded(next);
+          }}
         >
           <FieldSection.Header>
             {enabled && <FieldSection.Chevron />}

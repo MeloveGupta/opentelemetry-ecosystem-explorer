@@ -41,13 +41,16 @@ export function GeneralSectionCard({
   emptyMessage,
 }: GeneralSectionCardProps): JSX.Element {
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const { signal } = useSectionExpansion();
-  const [lastNonce, setLastNonce] = useState<number | null>(null);
-  if (signal && signal.nonce !== lastNonce) {
-    setLastNonce(signal.nonce);
-    if (signal.action === "expand") setExpanded(true);
-    if (signal.action === "collapse") setExpanded(false);
-  }
+  const { bulkAction, overrides, setOverride } = useSectionExpansion();
+  const bulkOpen =
+    sectionKey in overrides
+      ? overrides[sectionKey]
+      : bulkAction === "expand"
+        ? true
+        : bulkAction === "collapse"
+          ? false
+          : null;
+  const resolvedExpanded = bulkOpen !== null ? bulkOpen : expanded;
 
   const headerNode = {
     controlType: "group" as const,
@@ -61,8 +64,11 @@ export function GeneralSectionCard({
         node={headerNode}
         level="section"
         asGroup={false}
-        open={expanded}
-        onOpenChange={setExpanded}
+        open={resolvedExpanded}
+        onOpenChange={(next) => {
+          setOverride(sectionKey, next);
+          setExpanded(next);
+        }}
       >
         <FieldSection.Header>
           <FieldSection.Chevron />
