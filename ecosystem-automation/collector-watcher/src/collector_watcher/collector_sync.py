@@ -298,6 +298,7 @@ class CollectorSync:
 
         self.initialize_previous_version(distribution)
         components = self.scan_version(distribution, latest, checkout=True)
+        self.save_version(distribution, latest, components)
         self.detect_and_track_deprecations(distribution, latest, components)
 
         return latest
@@ -333,35 +334,10 @@ class CollectorSync:
         if removed > 0:
             logger.info("  Removed %d old snapshot(s)", removed)
 
+        self.save_version(distribution, snapshot_version, components)
         self.detect_and_track_deprecations(distribution, snapshot_version, components)
 
         return snapshot_version
-
-    def _process_distribution_sync(
-        self,
-        distribution: DistributionName
-    ) -> tuple[Version | None, Version]:
-        """
-        Process a single distribution and return the processed data.
-        
-        This method collects all data for a distribution without saving to registry,
-        allowing atomic commit of all distributions.
-        
-        Returns:
-            Tuple of (latest_release_version, snapshot_version)
-        """
-        logger.info("")
-        logger.info("=" * 60)
-        logger.info("Distribution: %s", distribution.upper())
-        logger.info("=" * 60)
-
-        # Process latest release
-        latest = self.process_latest_release(distribution)
-        
-        # Update snapshot
-        snapshot = self.update_snapshot(distribution)
-        
-        return latest, snapshot
 
     def sync(self) -> dict[str, Any]:
         """
@@ -372,8 +348,8 @@ class CollectorSync:
         2. Process any new releases
         3. Update snapshots for each distribution
 
-        This method now ensures atomicity across all distributions - 
-        either all distributions are updated successfully, or none are.
+        This method ensures atomicity across all distributions - 
+        if any distribution fails during processing, the entire sync fails.
 
         Returns:
             Summary of what was processed
@@ -387,48 +363,23 @@ class CollectorSync:
         logger.info("COLLECTOR METADATA SYNC")
         logger.info("=" * 60)
 
-        # First, collect all data for all distributions without saving
-        distribution_data = {}
-        try:
-            for distribution in self.repos.keys():
-                latest, snapshot = self._process_distribution_sync(distribution)
-                distribution_data[distribution] = {
-                    "latest": latest,
-                    "snapshot": snapshot
-                }
-        except Exception as e:
-            logger.error("Error processing distributions: %s", e)
-            raise  # Re-raise to ensure no partial updates occur
+        # Process all distributions sequentially (maintaining original order)
+        # If any fails, the entire process fails cleanly
+        for distribution in self.repos.keys():
+            logger.info("")
+            logger.info("=" * 60)
+            logger.info("Distribution: %s", distribution.upper())
+            logger.info("=" * 60)
 
-        # Now save all data atomically
-        try:
-            for distribution in self.repos.keys():
-                # Save the latest release if it was processed
-                if distribution_data[distribution]["latest"]:
-                    latest_version = distribution_data[distribution]["latest"]
-                    logger.info("")
-                    logger.info("Saving new release %s %s...", distribution, latest_version)
-                    # We need to re-scan the release version to get components for saving
-                    components = self.scan_version(distribution, latest_version, checkout=True)
-                    self.save_version(distribution, latest_version, components)
-                    summary["new_releases"].append({"distribution": distribution, "version": str(latest_version)})
+            # Process latest release
+            latest = self.process_latest_release(distribution)
+            if latest:
+                summary["new_releases"].append({"distribution": distribution, "version": str(latest)})
 
-                # Save the snapshot
-                snapshot_version = distribution_data[distribution]["snapshot"]
-                logger.info("")
-                logger.info("Saving snapshot %s %s...", distribution, snapshot_version)
-                # We need to re-scan the snapshot version to get components for saving
-                components = self.scan_version(distribution, snapshot_version, checkout=True)
-                self.save_version(distribution, snapshot_version, components)
-                summary["snapshots_updated"].append({"distribution": distribution, "version": str(snapshot_version)})
+            # Update snapshot
+            snapshot = self.update_snapshot(distribution)
+            summary["snapshots_updated"].append({"distribution": distribution, "version": str(snapshot)})
                 
-        except Exception as e:
-            logger.error("Error saving distribution data: %s", e)
-            # In case of save failure, we should not leave partial updates
-            # This is handled by the atomic approach - if we get here, we've already processed
-            # all data and are just saving, so we should clean up or let it fail cleanly
-            raise
-
         logger.info("")
         logger.info("=" * 60)
         logger.info("SYNC COMPLETE")
