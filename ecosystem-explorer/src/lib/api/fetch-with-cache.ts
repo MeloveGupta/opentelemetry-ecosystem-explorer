@@ -170,7 +170,7 @@ export async function fetchWithCache<T>(
 
       const format = options?.format ?? "json";
       const data = format === "json" ? await response.json() : await response.text();
-      
+
       // Validate fresh data unconditionally after parsing, before any caching
       if (options?.validate) {
         if (!options.validate(data)) {
@@ -183,10 +183,12 @@ export async function fetchWithCache<T>(
             }
           }
           // Only throw if no valid stale cache exists
-          throw new Error(`Failed to validate fresh response for ${cacheKey} from ${url} (response shape mismatch)`);
+          throw new Error(
+            `Failed to validate fresh response for ${cacheKey} from ${url} (response shape mismatch)`
+          );
         }
       }
-      
+
       if (isIDBAvailable()) {
         try {
           await setCached(cacheKey, data, storeType);

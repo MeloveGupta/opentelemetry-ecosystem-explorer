@@ -24,7 +24,10 @@ export async function loadConfigVersions(): Promise<ConfigVersionsIndex> {
     "config-versions-index",
     `${BASE_PATH}/versions-index.json`,
     STORES.CONFIGURATION,
-    { validate: (d) => d !== null && typeof d === "object" && Array.isArray(d.versions) && d.versions.length > 0 }
+    {
+      validate: (d) =>
+        d !== null && typeof d === "object" && Array.isArray(d.versions) && d.versions.length > 0,
+    }
   );
   if (!data) throw new Error("Versions index returned null unexpectedly");
   return data;
@@ -46,6 +49,9 @@ export async function loadConfigStarter(version: string): Promise<ConfigStarter 
     `config-starter-${version}`,
     `${BASE_PATH}/defaults/sdk-configuration-defaults-${version}.json`,
     STORES.CONFIGURATION,
-    { allow404: true, validate: (d) => d === null || (d !== null && typeof d === "object" && !Array.isArray(d)) }
+    {
+      allow404: true,
+      validate: (d) => d === null || (d !== null && typeof d === "object" && !Array.isArray(d)),
+    }
   );
 }
