@@ -38,7 +38,7 @@ export async function loadVersions(): Promise<VersionsIndex> {
     "collector-versions-index",
     `${BASE_PATH}/versions-index.json`,
     STORES.METADATA,
-    { validate: (d) => Array.isArray(d.versions) && d.versions.length > 0 }
+    { validate: (d) => d !== null && typeof d === "object" && Array.isArray(d.versions) && d.versions.length > 0 }
   );
   if (!data) throw new Error("Collector versions index returned null unexpectedly");
   return data;

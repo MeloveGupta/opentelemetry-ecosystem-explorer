@@ -24,7 +24,7 @@ export async function loadConfigVersions(): Promise<ConfigVersionsIndex> {
     "config-versions-index",
     `${BASE_PATH}/versions-index.json`,
     STORES.CONFIGURATION,
-    { validate: (d) => Array.isArray(d.versions) && d.versions.length > 0 }
+    { validate: (d) => d !== null && typeof d === "object" && Array.isArray(d.versions) && d.versions.length > 0 }
   );
   if (!data) throw new Error("Versions index returned null unexpectedly");
   return data;
@@ -35,7 +35,7 @@ export async function loadConfigSchema(version: string): Promise<ConfigNode> {
     `config-schema-${version}`,
     `${BASE_PATH}/versions/${version}.json`,
     STORES.CONFIGURATION,
-    { validate: (d) => d !== null && typeof d === "object" }
+    { validate: (d) => d !== null && typeof d === "object" && !Array.isArray(d) }
   );
   if (!data) throw new Error(`Schema for version ${version} returned null unexpectedly`);
   return data;
@@ -46,6 +46,6 @@ export async function loadConfigStarter(version: string): Promise<ConfigStarter 
     `config-starter-${version}`,
     `${BASE_PATH}/defaults/sdk-configuration-defaults-${version}.json`,
     STORES.CONFIGURATION,
-    { allow404: true, validate: (d) => d === null || (d !== null && typeof d === "object") }
+    { allow404: true, validate: (d) => d === null || (d !== null && typeof d === "object" && !Array.isArray(d)) }
   );
 }
