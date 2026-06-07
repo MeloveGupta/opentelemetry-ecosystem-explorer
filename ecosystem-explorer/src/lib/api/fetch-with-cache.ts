@@ -174,7 +174,6 @@ export async function fetchWithCache<T>(
       // Validate fresh data unconditionally after parsing, before any caching
       if (options?.validate) {
         if (!options.validate(data)) {
-          // More resilient approach: try to serve valid stale cache before throwing
           if (isIDBAvailable()) {
             const staleData = await getCached<T>(cacheKey, storeType, { allowExpired: true });
             if (staleData !== null && options.validate(staleData)) {
@@ -182,7 +181,6 @@ export async function fetchWithCache<T>(
               return staleData;
             }
           }
-          // Only throw if no valid stale cache exists
           throw new Error(
             `Failed to validate fresh response for ${cacheKey} from ${url} (response shape mismatch)`
           );

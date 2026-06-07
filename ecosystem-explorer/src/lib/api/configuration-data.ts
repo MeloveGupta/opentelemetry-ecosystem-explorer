@@ -51,7 +51,7 @@ export async function loadConfigStarter(version: string): Promise<ConfigStarter 
     STORES.CONFIGURATION,
     {
       allow404: true,
-      validate: (d) => d === null || (d !== null && typeof d === "object" && !Array.isArray(d)),
+      validate: (d) => d === null || (typeof d === "object" && !Array.isArray(d)),
     }
   );
 }
