@@ -188,7 +188,9 @@ function SdkTabContent({
               onPointerDown={handleInteraction}
             >
               {hasGeneralLeaves && (
-                <GeneralSectionCard label={GENERAL_SECTION_LABEL}>{leafChildren}</GeneralSectionCard>
+                <GeneralSectionCard label={GENERAL_SECTION_LABEL}>
+                  {leafChildren}
+                </GeneralSectionCard>
               )}
               {groupChildren.map((child) => (
                 <SchemaRenderer key={child.key} node={child} depth={0} path={child.key} />
