@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
 import type {
   ConfigNode,
   ConfigNodeBase,
@@ -38,6 +38,7 @@ import { UnionRenderer } from "./union-renderer";
 import { CircularRefPlaceholder } from "./circular-ref-placeholder";
 import { FieldSection } from "./field-section";
 import { useStarterPaths } from "./configuration-ui-context";
+import { useSectionExpansion } from "./section-expansion-context";
 
 export interface SchemaRendererProps {
   node: ConfigNode;
@@ -55,6 +56,51 @@ export interface SchemaRendererProps {
 
 function withHiddenLabel<T extends ConfigNodeBase>(node: T): T {
   return { ...node, hideLabel: true };
+}
+
+function WrappedLeaf({
+  node,
+  path,
+  defaultExp,
+  children,
+}: {
+  node: ConfigNodeBase;
+  path: string;
+  defaultExp: boolean;
+  children: JSX.Element;
+}) {
+  const { bulkAction, overrides, setOverride } = useSectionExpansion();
+  const [expanded, setExpanded] = useState(defaultExp);
+
+  const bulkOpen =
+    path in overrides
+      ? overrides[path]
+      : bulkAction === "expand"
+        ? true
+        : bulkAction === "collapse"
+          ? false
+          : null;
+  const resolvedExpanded = bulkOpen !== null ? bulkOpen : expanded;
+
+  return (
+    <FieldSection
+      node={node}
+      level="field"
+      open={resolvedExpanded}
+      onOpenChange={(next) => {
+        setExpanded(next);
+        setOverride(path, next);
+      }}
+    >
+      <FieldSection.Header>
+        <FieldSection.Chevron />
+        <FieldSection.Label />
+        <FieldSection.Stability />
+        <FieldSection.Info />
+      </FieldSection.Header>
+      <FieldSection.Body>{children}</FieldSection.Body>
+    </FieldSection>
+  );
 }
 
 export function SchemaRenderer({
@@ -79,15 +125,9 @@ export function SchemaRenderer({
   function wrap(control: JSX.Element): JSX.Element {
     if (!wrappable) return control;
     return (
-      <FieldSection node={node} level="field" defaultExpanded={starterPaths.has(path)}>
-        <FieldSection.Header>
-          <FieldSection.Chevron />
-          <FieldSection.Label />
-          <FieldSection.Stability />
-          <FieldSection.Info />
-        </FieldSection.Header>
-        <FieldSection.Body>{control}</FieldSection.Body>
-      </FieldSection>
+      <WrappedLeaf node={node} path={path} defaultExp={starterPaths.has(path)}>
+        {control}
+      </WrappedLeaf>
     );
   }
 

@@ -122,8 +122,11 @@ export function GroupRenderer({
       value={value}
       headless={headless}
       asGroup={!headless}
-      open={expanded}
-      onOpenChange={setExpanded}
+      open={resolvedExpanded}
+      onOpenChange={(next) => {
+        setExpanded(next);
+        setOverride(sectionKey, next);
+      }}
     >
       <FieldSection.Header>
         <FieldSection.Chevron />
