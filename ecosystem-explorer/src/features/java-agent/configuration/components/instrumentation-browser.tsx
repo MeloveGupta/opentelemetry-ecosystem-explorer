@@ -15,7 +15,7 @@
  */
 import { useState, useCallback, useMemo, type JSX } from "react";
 import { useSectionExpansion } from "./section-expansion-context";
-import type { InstrumentationData, InstrumentationModule } from "@/types/javaagent";
+import type { InstrumentationListEntry, InstrumentationModule } from "@/types/javaagent";
 import { Loader } from "@/components/ui/loader";
 import { useConfigurationBuilder } from "@/hooks/use-configuration-builder";
 import {
