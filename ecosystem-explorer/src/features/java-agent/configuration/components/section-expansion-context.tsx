@@ -56,8 +56,15 @@ export function SectionExpansionProvider({ children }: { children: ReactNode }) 
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
+const NO_OP_CONTEXT: SectionExpansionContextValue = {
+  expandAll: () => {},
+  collapseAll: () => {},
+  bulkAction: null,
+  overrides: {},
+  setOverride: () => {},
+};
+
 export function useSectionExpansion(): SectionExpansionContextValue {
   const ctx = useContext(SectionExpansionContext);
-  if (!ctx) throw new Error("useSectionExpansion must be used within a SectionExpansionProvider");
-  return ctx;
+  return ctx ?? NO_OP_CONTEXT;
 }
