@@ -109,11 +109,7 @@ interface SdkTabContentProps {
   activeTab: string;
 }
 
-function SdkTabContent({
-  schema,
-  javaAgentVersion,
-  activeTab,
-}: SdkTabContentProps) {
+function SdkTabContent({ schema, javaAgentVersion, activeTab }: SdkTabContentProps) {
   const { t } = useTranslation("java-agent");
   const [activePreviewKey, setActivePreviewKey] = useState<string | null>(null);
 
@@ -442,54 +438,63 @@ export function ConfigurationBuilderPage() {
           <Loader size="lg" label={t("builder.loading.versions")} className="mt-4" />
         ) : schemaVersionsState.error ? (
           <p className="mt-4 text-sm text-red-400">{t("builder.error.versions")}</p>
-        ) : root && (
-          <ConfigurationBuilderProvider
-            key={schemaVersion}
-            schema={root}
-            version={schemaVersion}
-            starter={starter.data}
-          >
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsContent value="sdk">
-                {!schemaVersion || schema.loading || starter.loading || (!schema.error && !root) ? (
-                  <Loader
-                    size={root ? "sm" : "lg"}
-                    label={t("builder.loading.schema")}
-                    className={root ? "mt-4" : undefined}
-                  />
-                ) : schema.error ? (
-                  <p className="mt-4 text-sm text-red-400">{t("builder.error.schema")}</p>
-                ) : starter.error ? (
-                  <p className="mt-4 text-sm text-red-400">{t("builder.error.template")}</p>
-                ) : root ? (
-                  <SdkTabContent
-                    schema={root}
-                    javaAgentVersion={javaAgentVersion}
-                    activeTab={activeTab}
-                  />
-                ) : null}
-              </TabsContent>
-              <TabsContent value="instrumentation">
-                {!schemaVersion || schema.loading || starter.loading || (!schema.error && !root) ? (
-                  <Loader
-                    size={root ? "sm" : "lg"}
-                    label={t("builder.loading.schema")}
-                    className={root ? "mt-4" : undefined}
-                  />
-                ) : schema.error ? (
-                  <p className="mt-4 text-sm text-red-400">{t("builder.error.schema")}</p>
-                ) : starter.error ? (
-                  <p className="mt-4 text-sm text-red-400">{t("builder.error.template")}</p>
-                ) : root ? (
-                  <InstrumentationTabContent
-                    schema={root}
-                    javaAgentVersion={javaAgentVersion}
-                    activeTab={activeTab}
-                  />
-                ) : null}
-              </TabsContent>
-            </Tabs>
-          </ConfigurationBuilderProvider>
+        ) : (
+          root &&
+          !starter.loading && (
+            <ConfigurationBuilderProvider
+              key={schemaVersion}
+              schema={root}
+              version={schemaVersion}
+              starter={starter.data}
+            >
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsContent value="sdk">
+                  {!schemaVersion ||
+                  schema.loading ||
+                  starter.loading ||
+                  (!schema.error && !root) ? (
+                    <Loader
+                      size={root ? "sm" : "lg"}
+                      label={t("builder.loading.schema")}
+                      className={root ? "mt-4" : undefined}
+                    />
+                  ) : schema.error ? (
+                    <p className="mt-4 text-sm text-red-400">{t("builder.error.schema")}</p>
+                  ) : starter.error ? (
+                    <p className="mt-4 text-sm text-red-400">{t("builder.error.template")}</p>
+                  ) : root ? (
+                    <SdkTabContent
+                      schema={root}
+                      javaAgentVersion={javaAgentVersion}
+                      activeTab={activeTab}
+                    />
+                  ) : null}
+                </TabsContent>
+                <TabsContent value="instrumentation">
+                  {!schemaVersion ||
+                  schema.loading ||
+                  starter.loading ||
+                  (!schema.error && !root) ? (
+                    <Loader
+                      size={root ? "sm" : "lg"}
+                      label={t("builder.loading.schema")}
+                      className={root ? "mt-4" : undefined}
+                    />
+                  ) : schema.error ? (
+                    <p className="mt-4 text-sm text-red-400">{t("builder.error.schema")}</p>
+                  ) : starter.error ? (
+                    <p className="mt-4 text-sm text-red-400">{t("builder.error.template")}</p>
+                  ) : root ? (
+                    <InstrumentationTabContent
+                      schema={root}
+                      javaAgentVersion={javaAgentVersion}
+                      activeTab={activeTab}
+                    />
+                  ) : null}
+                </TabsContent>
+              </Tabs>
+            </ConfigurationBuilderProvider>
+          )
         )}
       </div>
     </PageContainer>
