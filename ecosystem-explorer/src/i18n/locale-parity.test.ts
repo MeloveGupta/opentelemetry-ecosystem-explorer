@@ -61,14 +61,14 @@ function flattenKeys(obj: JsonObject, prefix = ""): Set<string> {
 const languages = listLanguages();
 
 describe("locale key parity", () => {
-   it(`found a "${baseLng}" locale directory to diff every other language against`, () => {
-     expect(languages).toContain(baseLng);
-   });
+  it(`found a "${baseLng}" locale directory to diff every other language against`, () => {
+    expect(languages).toContain(baseLng);
+  });
 
-   if (!languages.includes(baseLng)) {
+  if (!languages.includes(baseLng)) {
     return;
   }
-  
+
   const baseNamespaces = listNamespaces(baseLng);
 
   for (const lng of languages) {
