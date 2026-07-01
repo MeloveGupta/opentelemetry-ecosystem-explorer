@@ -24,14 +24,42 @@ const v1AppPath = resolve(__dirname, "v1/V1App.tsx");
 
 function extractRoutePaths(filePath: string): string[] {
   const content = readFileSync(filePath, "utf-8");
-  return [...content.matchAll(/path="([^"]+)"/g)].map((match) => match[1]);
+  const routeCount = (content.match(/<Route\b/g) ?? []).length;
+  const paths = [...content.matchAll(/path="([^"]+)"/g)].map((match) => match[1]);
+
+  if (paths.length !== routeCount) {
+    throw new Error(
+      `route-parity.test.ts expected one literal path="..." per <Route> in ` +
+        `${filePath}, but found ${routeCount} <Route> elements and only ` +
+        `${paths.length} literal paths. Update the extractor to handle the new route shape.`
+    );
+  }
+
+  return paths;
 }
 
-const legacyPaths = Array.from(new Set(extractRoutePaths(legacyAppPath)));
-const v1Paths = extractRoutePaths(v1AppPath);
+let legacyPaths: string[] = [];
+let v1Paths: string[] = [];
+let setupError: unknown = null;
+
+try {
+  legacyPaths = Array.from(new Set(extractRoutePaths(legacyAppPath)));
+  v1Paths = extractRoutePaths(v1AppPath);
+} catch (error) {
+  setupError = error;
+}
+
 const v1PathSet = new Set(v1Paths);
 
-describe("route table sync between LegacyApp and V1App", () => {
+describe("LegacyApp routes are present in V1App", () => {
+  it("read LegacyApp.tsx and V1App.tsx and extracted route paths without error", () => {
+    if (setupError) throw setupError;
+  });
+
+  if (setupError) {
+    return;
+  }
+
   it("extracted route paths from both LegacyApp.tsx and V1App.tsx", () => {
     expect(legacyPaths.length).toBeGreaterThan(0);
     expect(v1Paths.length).toBeGreaterThan(0);
