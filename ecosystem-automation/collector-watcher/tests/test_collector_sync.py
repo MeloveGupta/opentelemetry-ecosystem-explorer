@@ -586,7 +586,7 @@ def test_save_version_discovers_and_saves_component_readmes(
     assert content == "# OTLP Receiver"
 
 
-def test_save_version_with_no_readmes_writes_no_readme_dir(collector_sync, sample_components, temp_inventory_dir):
+def test_save_version_with_no_readmes_persists_no_readme_content(collector_sync, sample_components, temp_inventory_dir):
     """Most components won't have a README - no readme content should be persisted."""
     version = Version("0.112.0")
 
@@ -596,6 +596,42 @@ def test_save_version_with_no_readmes_writes_no_readme_dir(collector_sync, sampl
     # save_library_readmes exactly), so check for absence of content, not
     # absence of the directory itself.
     assert collector_sync.inventory_manager.load_component_readme_map("core", version) == {}
+
+
+def test_save_version_crash_before_inventory_write_leaves_no_trace(
+    collector_sync, sample_components, temp_inventory_dir
+):
+    """
+    Regression test for an ordering bug: readme saving used to run before the
+    real inventory write and mkdir'd the version directory as a side effect.
+    A crash between the two steps left version_exists() incorrectly True with
+    zero real component data, causing process_latest_release() to treat the
+    version as already tracked forever. The real write must happen first.
+    """
+    version = Version("0.112.0")
+
+    with patch.object(
+        collector_sync.inventory_manager, "save_versioned_inventory", side_effect=RuntimeError("simulated crash")
+    ):
+        with pytest.raises(RuntimeError):
+            collector_sync.save_version("core", version, sample_components)
+
+    assert not collector_sync.inventory_manager.version_exists("core", version)
+
+
+def test_save_version_crash_during_readme_save_is_benign(collector_sync, sample_components, temp_inventory_dir):
+    """The flip side: once the real inventory write has succeeded, a later readme-save crash is harmless."""
+    version = Version("0.112.0")
+
+    with patch.object(
+        collector_sync.inventory_manager, "save_component_readmes", side_effect=RuntimeError("simulated crash")
+    ):
+        with pytest.raises(RuntimeError):
+            collector_sync.save_version("core", version, sample_components)
+
+    assert collector_sync.inventory_manager.version_exists("core", version)
+    version_dir = temp_inventory_dir / "core" / "v0.112.0"
+    assert (version_dir / "receiver.yaml").exists()
 
 
 def test_save_version_readme_failure_does_not_block_inventory_save(

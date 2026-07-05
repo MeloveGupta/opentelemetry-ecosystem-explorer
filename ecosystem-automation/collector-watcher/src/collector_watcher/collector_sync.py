@@ -178,6 +178,8 @@ class CollectorSync:
         Also discovers and stores each component's README.md, if present,
         content-addressed under ``component_readmes/``. README publishing
         is best-effort: a failure here is logged and does not fail the sync.
+        This always runs after the inventory write below, never before -
+        see the comment at that call site for why the order matters.
 
         Schema is always read from the core repo: ``mdatagen`` lives only in
         ``opentelemetry-collector``, and the schema is identical across
@@ -196,6 +198,24 @@ class CollectorSync:
         """
         schema_hash = self._resolve_schema_hash(version)
 
+        repository = self.get_repository_name(distribution)
+        self.inventory_manager.save_versioned_inventory(
+            distribution=distribution,
+            version=version,
+            components=components,
+            repository=repository,
+            schema_hash=schema_hash,
+        )
+
+        # Readme discovery/save runs after the critical inventory write, not
+        # before: save_versioned_inventory() is what version_exists() treats
+        # as the "this version is tracked" signal, since it just checks
+        # whether the version directory exists. If readme saving (which also
+        # mkdirs that directory as a side effect of writing into it) ran
+        # first and the process crashed before save_versioned_inventory
+        # completed, version_exists() would incorrectly report the version
+        # as already tracked despite zero real component data ever being
+        # written - causing process_latest_release() to skip it forever.
         repo_path = self.repos[distribution]
         try:
             readmes = discover_component_readmes(repo_path, components)
@@ -206,15 +226,6 @@ class CollectorSync:
             # README publishing is best-effort and must never fail the sync -
             # the component inventory itself is the critical data.
             logger.warning("  Failed to save component READMEs for %s %s: %s", distribution, version, e)
-
-        repository = self.get_repository_name(distribution)
-        self.inventory_manager.save_versioned_inventory(
-            distribution=distribution,
-            version=version,
-            components=components,
-            repository=repository,
-            schema_hash=schema_hash,
-        )
 
         logger.info("  Saved %s %s (schema_hash=%s)", distribution, version, schema_hash)
 
