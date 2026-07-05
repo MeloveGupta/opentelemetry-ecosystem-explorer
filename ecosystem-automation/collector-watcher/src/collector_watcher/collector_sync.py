@@ -23,6 +23,7 @@ from watcher_common.version_detector import VersionDetector
 from .component_scanner import ComponentScanner
 from .deprecation_detector import DeprecationDetector
 from .inventory_manager import InventoryManager
+from .readme_scanner import discover_component_readmes
 from .schema_copier import SCHEMA_RELATIVE_PATH, UNKNOWN_HASH, CollectorSchemaCopier
 from .type_defs import DistributionName
 
@@ -174,14 +175,19 @@ class CollectorSync:
         distributions) and records that hash in every component YAML for
         drift detection and parser routing.
 
+        Also discovers and stores each component's README.md, if present,
+        content-addressed under ``component_readmes/``. README publishing
+        is best-effort: a failure here is logged and does not fail the sync.
+
         Schema is always read from the core repo: ``mdatagen`` lives only in
         ``opentelemetry-collector``, and the schema is identical across
         distributions, so contrib carries the same ``schema_hash`` as core.
 
         Registry layout after this call:
             ecosystem-registry/collector/
-                {distribution}/v{version}/*.yaml   (component data, each with schema_hash)
-                meta/schemas/{hash}.yaml           (one file per distinct schema)
+                {distribution}/v{version}/*.yaml               (component data, each with schema_hash)
+                {distribution}/v{version}/component_readmes/    (one file per distinct README content)
+                meta/schemas/{hash}.yaml                        (one file per distinct schema)
 
         Args:
             distribution: Distribution name
@@ -189,6 +195,17 @@ class CollectorSync:
             components: Scanned components
         """
         schema_hash = self._resolve_schema_hash(version)
+
+        repo_path = self.repos[distribution]
+        try:
+            readmes = discover_component_readmes(repo_path, components)
+            written = self.inventory_manager.save_component_readmes(distribution, version, readmes.items())
+            if written:
+                logger.info("  Saved %d component README(s)", written)
+        except OSError as e:
+            # README publishing is best-effort and must never fail the sync -
+            # the component inventory itself is the critical data.
+            logger.warning("  Failed to save component READMEs for %s %s: %s", distribution, version, e)
 
         repository = self.get_repository_name(distribution)
         self.inventory_manager.save_versioned_inventory(
