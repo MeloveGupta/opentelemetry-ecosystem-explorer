@@ -67,6 +67,12 @@ def _process_version(
 
     Loads data from every distribution and merges into one flat component list.
 
+    Also loads each distribution's component README map (if any), publishes
+    the underlying markdown content, and stamps a markdown_hash onto matching
+    components. README handling is best-effort and never fails this method -
+    a failure here is logged and just means that distribution's components
+    end up without markdown_hash for this version.
+
     Args:
         version: The version to process.
         inventory_manager: Source of raw registry data.
@@ -84,7 +90,22 @@ def _process_version(
 
     for distribution in DISTRIBUTIONS:
         inventory = inventory_manager.load_versioned_inventory(distribution, version)
-        components = transform_collector_components(inventory, distribution)
+
+        readme_map: dict[str, str] = {}
+        try:
+            readme_map = inventory_manager.load_component_readme_map(distribution, version)
+            for component_name, markdown_hash in readme_map.items():
+                content = inventory_manager.load_component_readme_content(
+                    distribution, version, component_name, markdown_hash
+                )
+                if content is not None:
+                    db_writer.write_markdown(component_name, markdown_hash, content)
+        except OSError as e:
+            # README publishing is best-effort and must never fail the build -
+            # the component inventory itself is the critical data.
+            logger.warning("  Failed to load/publish component READMEs for %s %s: %s", distribution, version, e)
+
+        components = transform_collector_components(inventory, distribution, readme_map)
         logger.info("  %s: %d components", distribution, len(components))
         all_components.extend(components)
 

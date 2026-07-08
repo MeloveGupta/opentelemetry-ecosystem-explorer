@@ -50,6 +50,10 @@ def _make_mock_inventory_manager(versions_by_distribution=None, inventories=None
         (dist, ver), {"distribution": dist, "version": str(ver), "repository": "", "components": {}}
     )
 
+    # Default to "no readmes" so existing tests that don't care about readme
+    # handling aren't affected. Tests that do care override this explicitly.
+    manager.load_component_readme_map.return_value = {}
+
     return manager
 
 
@@ -238,7 +242,8 @@ class TestRunCollectorBuilder:
         # Slim entries: index shape with derived stability, no nested status/attributes.
         assert len(bundle) == 3
         assert all(
-            set(entry.keys()) <= {"id", "name", "distribution", "type", "display_name", "description", "stability"}
+            set(entry.keys())
+            <= {"id", "name", "distribution", "type", "display_name", "description", "stability", "has_readme"}
             for entry in bundle
         )
 
@@ -379,3 +384,66 @@ class TestRunCollectorBuilder:
         result = run_collector_builder(inventory_manager=manager, db_writer=db_writer)
 
         assert result == 1
+
+
+class TestRunCollectorBuilderReadmes:
+    """Mirrors test_main.py's test_run_builder_processes_readmes for the javaagent builder."""
+
+    def test_processes_readmes_and_stamps_markdown_hash(self, tmp_path):
+        version = Version("0.150.0")
+        core_inventory = {
+            "distribution": "core",
+            "version": "0.150.0",
+            "repository": "opentelemetry-collector",
+            "components": {
+                "receiver": [{"name": "otlpreceiver", "metadata": {"display_name": "OTLP Receiver"}}],
+                "processor": [],
+                "exporter": [],
+                "connector": [],
+                "extension": [],
+            },
+        }
+        contrib_inventory = {
+            "distribution": "contrib",
+            "version": "0.150.0",
+            "repository": "opentelemetry-collector-contrib",
+            "components": {t: [] for t in ["receiver", "processor", "exporter", "connector", "extension"]},
+        }
+
+        manager = _make_mock_inventory_manager(
+            versions_by_distribution={"core": [version], "contrib": [version]},
+            inventories={("core", version): core_inventory, ("contrib", version): contrib_inventory},
+        )
+        readme_map = {"otlpreceiver": "abc123def456"}
+        readme_content = "# OTLP Receiver README"
+        manager.load_component_readme_map.side_effect = lambda dist, ver: readme_map if dist == "core" else {}
+        manager.load_component_readme_content.return_value = readme_content
+
+        db_writer = CollectorDatabaseWriter(database_dir=str(tmp_path / "collector"))
+        exit_code = run_collector_builder(inventory_manager=manager, db_writer=db_writer)
+
+        assert exit_code == 0
+
+        # README content was loaded and published.
+        manager.load_component_readme_content.assert_any_call("core", version, "otlpreceiver", "abc123def456")
+        markdown_file = tmp_path / "collector" / "markdown" / "otlpreceiver-abc123def456.md"
+        assert markdown_file.exists()
+        assert markdown_file.read_text(encoding="utf-8") == readme_content
+
+        # Hash was stamped onto the matching component's written record.
+        with open(tmp_path / "collector" / "index.json") as f:
+            index_data = json.load(f)
+        otlp_entry = next(c for c in index_data["components"] if c["name"] == "otlpreceiver")
+        assert otlp_entry["has_readme"] is True
+
+    def test_readme_load_failure_does_not_fail_the_build(self, tmp_path):
+        """A README-loading failure for one distribution must not block the whole build."""
+        version = Version("0.150.0")
+        manager = _make_mock_inventory_manager(versions_by_distribution={"core": [version], "contrib": [version]})
+        manager.load_component_readme_map.side_effect = OSError("simulated disk error")
+
+        db_writer = CollectorDatabaseWriter(database_dir=str(tmp_path / "collector"))
+        exit_code = run_collector_builder(inventory_manager=manager, db_writer=db_writer)
+
+        assert exit_code == 0
+        assert (tmp_path / "collector" / "index.json").exists()
