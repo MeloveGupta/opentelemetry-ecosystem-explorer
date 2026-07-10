@@ -69,9 +69,10 @@ def _process_version(
 
     Also loads each distribution's component README map (if any), publishes
     the underlying markdown content, and stamps a markdown_hash onto matching
-    components. README handling is best-effort and never fails this method -
-    a failure here is logged and just means that distribution's components
-    end up without markdown_hash for this version.
+    components. Only components whose README was actually loaded and
+    published successfully get a markdown_hash - a failure loading or
+    publishing one component's README is logged and only excludes that
+    component, not the rest of the distribution.
 
     Args:
         version: The version to process.
@@ -91,21 +92,34 @@ def _process_version(
     for distribution in DISTRIBUTIONS:
         inventory = inventory_manager.load_versioned_inventory(distribution, version)
 
-        readme_map: dict[str, str] = {}
+        published_readmes: dict[str, str] = {}
         try:
             readme_map = inventory_manager.load_component_readme_map(distribution, version)
             for component_name, markdown_hash in readme_map.items():
-                content = inventory_manager.load_component_readme_content(
-                    distribution, version, component_name, markdown_hash
-                )
-                if content is not None:
-                    db_writer.write_markdown(component_name, markdown_hash, content)
+                try:
+                    content = inventory_manager.load_component_readme_content(
+                        distribution, version, component_name, markdown_hash
+                    )
+                    if content is not None:
+                        db_writer.write_markdown(component_name, markdown_hash, content)
+                        published_readmes[component_name] = markdown_hash
+                except OSError as e:
+                    # One component's README failing must never block the
+                    # rest of this distribution's READMEs, or the component
+                    # inventory itself, which is the critical data.
+                    logger.warning(
+                        "  Failed to load/publish README for component '%s' in %s %s: %s",
+                        component_name,
+                        distribution,
+                        version,
+                        e,
+                    )
         except OSError as e:
-            # README publishing is best-effort and must never fail the build -
-            # the component inventory itself is the critical data.
-            logger.warning("  Failed to load/publish component READMEs for %s %s: %s", distribution, version, e)
+            # Covers a failure in load_component_readme_map itself (e.g. the
+            # component_readmes directory becoming unreadable mid-scan).
+            logger.warning("  Failed to load component READMEs for %s %s: %s", distribution, version, e)
 
-        components = transform_collector_components(inventory, distribution, readme_map)
+        components = transform_collector_components(inventory, distribution, published_readmes)
         logger.info("  %s: %d components", distribution, len(components))
         all_components.extend(components)
 

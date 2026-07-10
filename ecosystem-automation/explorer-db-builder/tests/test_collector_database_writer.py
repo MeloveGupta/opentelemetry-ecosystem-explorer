@@ -361,11 +361,12 @@ class TestWriteMarkdown:
     def test_write_markdown_sanitizes_dangerous_name(self, db_writer, temp_db_dir):
         db_writer.write_markdown("../dangerous", "abc123def456", "safe content")
 
-        # The sanitizer allows dots (real component names use them) and only
-        # strips path separators, so ".." survives as literal characters -
-        # what matters is that "/" is gone, so the file can't escape
-        # temp_db_dir/markdown/. Matches collector-watcher's identical
-        # _sanitize_name behavior from the readme-discovery PR.
+        # The sanitizer allows dots (real component names use them) and replaces any
+        # character outside [a-zA-Z0-9._-] (including path separators) with "_", so
+        # ".." survives as literal characters. What matters is that "/" is
+        # removed, so the file can't escape temp_db_dir/markdown/. Matches
+        # collector-watcher's identical _sanitize_name behavior from the
+        # readme-discovery PR.
         markdown_dir = temp_db_dir / "markdown"
         files = list(markdown_dir.glob("*.md"))
         assert len(files) == 1
