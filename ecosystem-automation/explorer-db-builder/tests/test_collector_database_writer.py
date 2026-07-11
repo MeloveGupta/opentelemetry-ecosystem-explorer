@@ -334,8 +334,9 @@ class TestWriteMarkdown:
         markdown_hash = "abc123def456"
         content = "# OTLP Receiver"
 
-        db_writer.write_markdown(component_name, markdown_hash, content)
+        result = db_writer.write_markdown(component_name, markdown_hash, content)
 
+        assert result is True
         markdown_file = temp_db_dir / "markdown" / f"{component_name}-{markdown_hash}.md"
         assert markdown_file.exists()
         assert markdown_file.read_text(encoding="utf-8") == content
@@ -350,17 +351,22 @@ class TestWriteMarkdown:
         markdown_hash = "abc123def456"
         content = "# OTLP Receiver"
 
-        db_writer.write_markdown(component_name, markdown_hash, content)
+        first_result = db_writer.write_markdown(component_name, markdown_hash, content)
+        assert first_result is True
         assert db_writer.files_written == 1
 
-        db_writer.write_markdown(component_name, markdown_hash, content)
+        second_result = db_writer.write_markdown(component_name, markdown_hash, content)
 
+        # Already existing counts as success too - the markdown is genuinely
+        # present on disk, which is the only thing the caller cares about.
+        assert second_result is True
         assert db_writer.files_written == 1
         assert "already exists, skipping write" in caplog.text
 
     def test_write_markdown_sanitizes_dangerous_name(self, db_writer, temp_db_dir):
-        db_writer.write_markdown("../dangerous", "abc123def456", "safe content")
+        result = db_writer.write_markdown("../dangerous", "abc123def456", "safe content")
 
+        assert result is True
         # The sanitizer allows dots (real component names use them) and replaces any
         # character outside [a-zA-Z0-9._-] (including path separators) with "_", so
         # ".." survives as literal characters. What matters is that "/" is
@@ -378,8 +384,9 @@ class TestWriteMarkdown:
 
         with patch("builtins.open", side_effect=OSError("Disk full")):
             with patch("explorer_db_builder.collector_database_writer.logger") as mock_logger:
-                db_writer.write_markdown("error-component", "hash", "content")
+                result = db_writer.write_markdown("error-component", "hash", "content")
 
+                assert result is False
                 mock_logger.error.assert_called()
                 args, _ = mock_logger.error.call_args
                 assert "Failed to write markdown" in args[0]

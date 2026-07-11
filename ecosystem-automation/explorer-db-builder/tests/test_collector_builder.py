@@ -15,7 +15,8 @@
 """Tests for collector_builder module."""
 
 import json
-from unittest.mock import MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 from explorer_db_builder.collector_builder import (
@@ -455,6 +456,12 @@ class TestReadmePublishingIsolation:
     README load still left markdown_hash stamped on the component record."""
 
     def test_one_component_readme_failure_does_not_block_the_rest(self, tmp_path):
+        """Exercises the defensive per-component OSError isolation via a mocked
+        raise - the real InventoryManager.load_component_readme_content
+        swallows OSError and returns None rather than raising (see
+        test_failed_readme_load_does_not_stamp_markdown_hash below for that
+        real, non-raising path). This test guards the isolation itself
+        staying correct if that ever changes, not current production behavior."""
         version = Version("0.150.0")
         core_inventory = {
             "distribution": "core",
@@ -550,9 +557,15 @@ class TestReadmePublishingIsolation:
         assert not markdown_dir.exists() or list(markdown_dir.glob("*.md")) == []
 
     def test_write_markdown_failure_for_one_component_does_not_block_the_rest(self, tmp_path):
-        """Closes a gap in the originally-suggested fix, which only isolated
-        the read call - a write failure (e.g. write_markdown's internal mkdir
-        raising) must be isolated per-component too, not just the read."""
+        """Closes a gap in an earlier fix, which only isolated the read call -
+        a write failure (e.g. write_markdown's internal open() raising) must
+        be isolated per-component too, not just the read.
+
+        This drives the real write_markdown implementation (patching
+        builtins.open selectively) rather than replacing the method with a
+        fake that raises, since the real method swallows OSError internally
+        and communicates failure via its return value, not an exception.
+        """
         version = Version("0.150.0")
         core_inventory = {
             "distribution": "core",
@@ -584,16 +597,24 @@ class TestReadmePublishingIsolation:
         manager.load_component_readme_content.side_effect = lambda dist, ver, name, h: f"# {name}"
 
         db_writer = CollectorDatabaseWriter(database_dir=str(tmp_path / "collector"))
-        original_write_markdown = db_writer.write_markdown
 
-        def flaky_write_markdown(name, h, content):
-            if name == "badreceiver":
-                raise OSError("simulated mkdir failure")
-            return original_write_markdown(name, h, content)
+        import builtins
 
-        db_writer.write_markdown = flaky_write_markdown
+        real_open = builtins.open
 
-        exit_code = run_collector_builder(inventory_manager=manager, db_writer=db_writer)
+        def selective_open(path, *args, **kwargs):
+            # Match on structure (parent dir is exactly "markdown", filename
+            # starts with the component name), not a raw substring check -
+            # tmp_path itself is derived from this test's function name,
+            # which happens to contain "markdown", so a loose substring
+            # check on the full path string is not reliable here.
+            p = Path(path)
+            if p.parent.name == "markdown" and p.name.startswith("badreceiver-"):
+                raise OSError("simulated mkdir/disk failure")
+            return real_open(path, *args, **kwargs)
+
+        with patch("builtins.open", side_effect=selective_open):
+            exit_code = run_collector_builder(inventory_manager=manager, db_writer=db_writer)
 
         assert exit_code == 0
         with open(tmp_path / "collector" / "index.json") as f:
@@ -602,3 +623,9 @@ class TestReadmePublishingIsolation:
 
         assert by_name["goodreceiver"]["has_readme"] is True
         assert by_name["badreceiver"]["has_readme"] is False
+
+        # No markdown file should exist for the component whose write failed.
+        markdown_dir = tmp_path / "collector" / "markdown"
+        markdown_files = [p.name for p in markdown_dir.glob("*.md")]
+        assert not any("badreceiver" in name for name in markdown_files)
+        assert any("goodreceiver" in name for name in markdown_files)

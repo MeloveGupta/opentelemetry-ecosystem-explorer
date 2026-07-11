@@ -100,13 +100,17 @@ def _process_version(
                     content = inventory_manager.load_component_readme_content(
                         distribution, version, component_name, markdown_hash
                     )
-                    if content is not None:
-                        db_writer.write_markdown(component_name, markdown_hash, content)
+                    if content is not None and db_writer.write_markdown(component_name, markdown_hash, content):
                         published_readmes[component_name] = markdown_hash
                 except OSError as e:
-                    # One component's README failing must never block the
-                    # rest of this distribution's READMEs, or the component
-                    # inventory itself, which is the critical data.
+                    # Defensive: neither load_component_readme_content nor
+                    # write_markdown currently raise OSError (both swallow
+                    # their own failures and signal via return value - see
+                    # `content is not None and db_writer.write_markdown(...)`
+                    # above, which is what actually gates the stamp). This
+                    # stays as a safety net in case that changes, so one
+                    # component's failure still can't take down the rest of
+                    # this distribution's READMEs or the component inventory.
                     logger.warning(
                         "  Failed to load/publish README for component '%s' in %s %s: %s",
                         component_name,
