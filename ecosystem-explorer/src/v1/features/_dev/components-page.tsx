@@ -36,7 +36,9 @@ import { type Stability, StatusPill } from "@/components/ui/status-pill";
 import { ReleaseCard } from "@/v1/components/ecosystem/release-card";
 import { type PipelineStage, PipelineAnatomy } from "@/v1/components/ecosystem/pipeline-anatomy";
 import { QuickEntryRow } from "@/v1/components/ecosystem/quick-entry-row";
+import { FacetPanel } from "@/v1/components/list/facet-panel";
 import { CheckboxFacet, SearchFacet, SelectFacet } from "@/v1/components/list/facets";
+import { DEFAULT_FILTERS, type ListFilters } from "@/v1/lib/list-filters";
 import { CoverBlock } from "@/v1/components/home/cover-block";
 import { EcosystemsGrid } from "@/v1/components/home/ecosystems-grid";
 import { GlobalSearch } from "@/v1/components/home/global-search";
@@ -244,6 +246,32 @@ function FacetShowcase() {
   );
 }
 
+// FacetPanel is controlled by the list page's URL state in production; the
+// showcase holds a local ListFilters object and merges partial updates the
+// same way the page will.
+function FacetPanelShowcase() {
+  const [filters, setFilters] = useState<ListFilters>({
+    ...DEFAULT_FILTERS,
+    types: ["receiver"],
+    signals: ["traces"],
+  });
+
+  return (
+    <div className="max-w-xs">
+      <FacetPanel
+        filters={filters}
+        onChange={(next) => setFilters((current) => ({ ...current, ...next }))}
+        versions={["v0.150.0", "v0.149.0", "v0.148.0"]}
+        counts={{
+          types: { receiver: 98, processor: 28, exporter: 64, connector: 12, extension: 21 },
+          signals: { traces: 112, metrics: 96, logs: 74, baggage: 8 },
+          distributions: { core: 41, contrib: 182 },
+        }}
+      />
+    </div>
+  );
+}
+
 export function DevComponentsPage() {
   // Wrapper is a <section>, not <main>: V1App.tsx and LegacyApp.tsx already
   // render a <main> around every route, and nested landmarks would fail axe.
@@ -444,6 +472,14 @@ export function DevComponentsPage() {
         bare
       >
         <FacetShowcase />
+      </Section>
+
+      <Section
+        id="facet-panel"
+        title="FacetPanel (composed facet rail with counts + version select)"
+        bare
+      >
+        <FacetPanelShowcase />
       </Section>
 
       <Section

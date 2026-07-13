@@ -35,6 +35,59 @@
       }
     }
   },
+  "listV1": {
+    "facets": {
+      "panel": {
+        "label": "Filters",
+        "close": "Close filters"
+      },
+      "search": {
+        "title": "Search",
+        "placeholder": "Search name or description…"
+      },
+      "type": {
+        "title": "Type",
+        "options": {
+          "receiver": "Receiver",
+          "processor": "Processor",
+          "exporter": "Exporter",
+          "connector": "Connector",
+          "extension": "Extension"
+        }
+      },
+      "signal": {
+        "title": "Signal",
+        "options": {
+          "traces": "Traces",
+          "metrics": "Metrics",
+          "logs": "Logs",
+          "baggage": "Baggage"
+        }
+      },
+      "stability": {
+        "title": "Stability",
+        "options": {
+          "stable": "Stable",
+          "beta": "Beta",
+          "alpha": "Alpha",
+          "development": "Development",
+          "deprecated": "Deprecated",
+          "unmaintained": "Unmaintained"
+        }
+      },
+      "distribution": {
+        "title": "Distribution",
+        "options": {
+          "core": "Core",
+          "contrib": "Contrib"
+        }
+      },
+      "version": {
+        "title": "Version",
+        "latest": "Latest"
+      }
+    }
+  },
   "page": {
     "title": "OpenTelemetry Collector",
     "description": "A vendor-agnostic implementation for receiving, processing, and exporting telemetry data."
