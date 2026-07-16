@@ -86,6 +86,7 @@ export function CollectorReadmeTab({ name, markdownHash }: CollectorReadmeTabPro
         components={{
           a: Anchor,
           code: Code,
+          pre: ({ children }) => <>{children}</>,
           h1: ({ children }) => (
             <h1 className="text-foreground mt-6 mb-3 text-2xl font-bold first:mt-0">{children}</h1>
           ),

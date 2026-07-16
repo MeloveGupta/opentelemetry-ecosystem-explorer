@@ -225,6 +225,19 @@ describe("collector-data", () => {
       expect(fetchedUrl).toContain("/data/collector/markdown/otlpreceiver-abc123def456.md");
     });
 
+    it("propagates fetch errors when loading README", async () => {
+      vi.spyOn(idbCache, "getCached").mockResolvedValue(null);
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+      });
+
+      await expect(
+        collectorData.loadComponentReadme("otlpreceiver", "abc123def456")
+      ).rejects.toThrow(/Failed to load collector-readme-otlpreceiver-abc123def456 from.*: 404 Not Found/);
+    });
+
     it("throws when the fetch resolves to null", async () => {
       vi.spyOn(idbCache, "getCached").mockResolvedValue(null);
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
