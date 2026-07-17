@@ -159,4 +159,6 @@ export interface IndexComponent {
   description?: string | null;
   stability?: Stability | null;
   has_readme?: boolean;
+  /** Telemetry signals supported across all stability levels (e.g. ["metrics", "traces"]). */
+  signals?: string[];
 }
