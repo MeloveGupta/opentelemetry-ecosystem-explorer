@@ -23,9 +23,11 @@
  * all filter state lives in the parent (driven by the `listFilters` URL
  * contract), and the facet vocabularies derive from that contract's exported
  * arrays so the checkboxes can't drift from what `parseFilters` accepts.
- * Copy comes from the `collector` namespace's `listV1.facets` block,
- * self-contained so the end-of-redesign cleanup can drop the legacy
- * `filters.*` keys without breaking v1.
+ * Structural copy (panel/search/facet titles, and the ecosystem-agnostic Signal
+ * vocabulary) lives in the `list` namespace, matching `controls.tsx`. Collector-specific
+ * option vocabulary (type/stability/distribution values) stays in the `collector`
+ * namespace's `listV1.facets` block, self-contained so the end-of-redesign cleanup can
+ * drop the legacy `filters.*` keys without breaking v1.
  */
 
 import { X } from "lucide-react";
@@ -81,7 +83,7 @@ export function FacetPanel({
   isOpen = false,
   onClose,
 }: FacetPanelProps) {
-  const { t } = useTranslation("collector");
+  const { t } = useTranslation(["list", "collector"]);
 
   useEffect(() => {
     if (!isOpen || !onClose) return;
@@ -95,6 +97,9 @@ export function FacetPanel({
   // Every facet edit resets pagination: a new filter set is a new result set.
   const change = (next: Partial<ListFilters>) => onChange({ ...next, page: 1 });
 
+  // Signal's vocabulary lives in the `list` namespace (it's ecosystem-agnostic,
+  // defined by `list-filters.ts`'s SIGNALS array); type/stability/distribution
+  // are collector-domain terms and stay in `collector`.
   function facetOptions<T extends string>(
     facet: "type" | "signal" | "stability" | "distribution",
     values: readonly T[],
@@ -103,20 +108,23 @@ export function FacetPanel({
     return values.map((value) => ({
       value,
       swatch: swatches?.[value],
-      label: t(`listV1.facets.${facet}.options.${value}`),
+      label:
+        facet === "signal"
+          ? t(`facets.signal.options.${value}`)
+          : t(`listV1.facets.${facet}.options.${value}`, { ns: "collector" }),
     }));
   }
 
   return (
     <aside
       className={`td-facet-panel ${isOpen ? "td-facet-panel--open" : ""}`}
-      aria-label={t("listV1.facets.panel.label")}
+      aria-label={t("facets.panel.label")}
     >
       {onClose && (
         <button
           type="button"
           className="td-facet-panel__close"
-          aria-label={t("listV1.facets.panel.close")}
+          aria-label={t("facets.panel.close")}
           onClick={onClose}
         >
           <X className="h-4 w-4" aria-hidden focusable="false" />
@@ -124,28 +132,28 @@ export function FacetPanel({
       )}
 
       <SearchFacet
-        title={t("listV1.facets.search.title")}
-        placeholder={t("listV1.facets.search.placeholder")}
+        title={t("facets.search.title")}
+        placeholder={t("facets.search.placeholder")}
         value={filters.q}
         onChange={(q) => change({ q })}
       />
 
       <CheckboxFacet
-        title={t("listV1.facets.type.title")}
+        title={t("facets.type.title")}
         options={withCounts(facetOptions("type", TYPES, TYPE_STRIPE_COLORS), counts?.types)}
         selected={filters.types}
         onChange={(types) => change({ types })}
       />
 
       <CheckboxFacet
-        title={t("listV1.facets.signal.title")}
+        title={t("facets.signal.title")}
         options={withCounts(facetOptions("signal", SIGNALS), counts?.signals)}
         selected={filters.signals}
         onChange={(signals) => change({ signals })}
       />
 
       <CheckboxFacet
-        title={t("listV1.facets.stability.title")}
+        title={t("facets.stability.title")}
         options={withCounts(
           facetOptions("stability", STABILITIES, STABILITY_SWATCHES),
           counts?.stabilities
@@ -155,7 +163,7 @@ export function FacetPanel({
       />
 
       <CheckboxFacet
-        title={t("listV1.facets.distribution.title")}
+        title={t("facets.distribution.title")}
         options={withCounts(facetOptions("distribution", DISTRIBUTIONS), counts?.distributions)}
         selected={filters.distributions}
         onChange={(distributions) => change({ distributions })}
@@ -163,11 +171,11 @@ export function FacetPanel({
 
       {versions && versions.length > 0 && (
         <SelectFacet
-          title={t("listV1.facets.version.title")}
+          title={t("facets.version.title")}
           options={versions.map((v) => ({ value: v, label: v }))}
           value={filters.version}
           onChange={(version) => change({ version })}
-          emptyLabel={t("listV1.facets.version.latest")}
+          emptyLabel={t("facets.version.latest")}
         />
       )}
     </aside>
