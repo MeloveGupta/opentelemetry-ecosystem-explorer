@@ -648,12 +648,6 @@ def test_save_version_readme_failure_does_not_block_inventory_save(
 
 
 # --- backfill / backfill_versions ---
-#
-# Covers the mechanism jaydeluca will rely on operationally to backfill
-# component READMEs into already-tracked collector versions (see #762 PR 3
-# discussion). backfill_versions() re-runs save_version() unconditionally,
-# without the version_exists() skip that gates the normal sync path, so it's
-# the fix for versions that were tracked before readme discovery existed.
 
 
 def test_backfill_versions_reprocesses_specified_versions(collector_sync, sample_components, temp_inventory_dir):
@@ -767,12 +761,11 @@ def test_backfill_versions_picks_up_readmes_for_a_previously_tracked_version(
     version = Version("0.111.0")
     collector_sync.save_version("core", version, sample_components)
     assert collector_sync.inventory_manager.version_exists("core", version)
-    # save_component_readmes always mkdirs component_readmes/, even when
-    # nothing was found (same behavior established in PR1), so check for
+    # save_component_readmes always mkdirs component_readmes/, check for
     # absence of actual content rather than absence of the directory.
     assert collector_sync.inventory_manager.load_component_readme_map("core", version) == {}
 
-    # A README.md genuinely exists in the repo at this tag; it just was never
+    # A README.md genuinely exists in the repo at this tag, it just was never
     # discovered because readme_scanner didn't exist when this version was
     # first tracked (simulated here by adding it retroactively at the tag).
     repo_path = Path(temp_git_repos["core"])

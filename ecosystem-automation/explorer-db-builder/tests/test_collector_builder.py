@@ -340,24 +340,41 @@ class TestRunCollectorBuilder:
 
     def test_ecosystem_stats_counts_components_removed_in_newer_versions(self, tmp_path):
         """A component present only in an older version still contributes to the total."""
-        inventories = {
-            ("core", Version("0.151.0")): _make_core_inventory("0.151.0"),
-            ("contrib", Version("0.151.0")): {
-                "distribution": "contrib",
-                "version": "0.151.0",
-                "repository": "opentelemetry-collector-contrib",
-                "components": {
-                    "receiver": [],
-                    "processor": [],
-                    "exporter": [],
-                    "connector": [],
-                    "extension": [],
-                },
+        core_newer = _make_core_inventory("0.156.0")
+        core_older = _make_core_inventory("0.155.0")
+        # 0.156.0 (newer) only has otlpreceiver, prometheusreceiver existed in
+        # 0.155.0 (older) and was removed since, but must still be counted.
+        contrib_newer = {
+            "distribution": "contrib",
+            "version": "0.156.0",
+            "repository": "opentelemetry-collector-contrib",
+            "components": {
+                "receiver": [
+                    {
+                        "name": "otlpreceiver",
+                        "metadata": {"type": "otlp", "display_name": "OTLP Receiver"},
+                    }
+                ],
+                "processor": [],
+                "exporter": [],
+                "connector": [],
+                "extension": [],
             },
-            ("core", Version("0.155.0")): _make_core_inventory("0.155.0"),
-            ("contrib", Version("0.155.0")): _make_contrib_inventory("0.155.0"),
         }
-        manager = _make_mock_inventory_manager(inventories=inventories)
+        contrib_older = _make_contrib_inventory("0.155.0")
+        inventories = {
+            ("core", Version("0.156.0")): core_newer,
+            ("contrib", Version("0.156.0")): contrib_newer,
+            ("core", Version("0.155.0")): core_older,
+            ("contrib", Version("0.155.0")): contrib_older,
+        }
+        manager = _make_mock_inventory_manager(
+            versions_by_distribution={
+                "core": [Version("0.156.0"), Version("0.155.0")],
+                "contrib": [Version("0.156.0"), Version("0.155.0")],
+            },
+            inventories=inventories,
+        )
         db_writer = CollectorDatabaseWriter(database_dir=str(tmp_path / "collector"))
 
         result = run_collector_builder(inventory_manager=manager, db_writer=db_writer)
@@ -366,7 +383,8 @@ class TestRunCollectorBuilder:
         with open(tmp_path / "collector" / "ecosystem-stats.json") as f:
             data = json.load(f)
 
-        # 0.151.0 has only core's 1 receiver; 0.155.0 additionally has contrib's 2 receivers.
+        # Latest (0.156.0) alone only has core-nopreceiver + contrib-otlpreceiver.
+        # contrib-prometheusreceiver only exists in 0.155.0, and must still be counted.
         assert data["component_count"] == 3
 
     def test_returns_1_when_all_versions_empty(self, tmp_path):
