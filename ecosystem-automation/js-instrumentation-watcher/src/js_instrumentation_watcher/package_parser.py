@@ -215,9 +215,10 @@ class PackageParser:
                     mode: max-7
                   commands: [...]
 
-        A `versions` value directly on an entry may also be a bare string
-        (oracledb, socket.io and nestjs-core use this), see
-        _versions_as_mapping.
+        A `versions` value may also be a bare string, on an entry
+        (oracledb, socket.io and nestjs-core use this) or inside a top-level
+        `jobs` list, see _versions_as_mapping. `jobs` inside a list entry is
+        left as is, tav itself rejects that shape with "Missing versions".
 
         Results are sorted by (package, range, mode, exclude) for
         deterministic registry output, so upstream reordering of the
@@ -262,7 +263,7 @@ class PackageParser:
                 jobs = config.get("jobs", [])
                 if jobs:
                     for job in jobs:
-                        v = job.get("versions", {})
+                        v = self._versions_as_mapping(job.get("versions", {}))
                         if isinstance(v, dict) and v:
                             results.append(self._build_tav_entry(pkg_name, v))
                 else:

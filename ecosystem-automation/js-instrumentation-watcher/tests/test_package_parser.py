@@ -312,6 +312,43 @@ def test_tav_versions_string_on_dict_config(tmp_package):
     ]
 
 
+def test_tav_versions_string_in_top_level_jobs(tmp_package):
+    write_package_json(
+        tmp_package,
+        {
+            "name": "@opentelemetry/instrumentation-knex",
+            "version": "0.58.0",
+            "description": "test",
+        },
+    )
+    # tav runs every entry of a top-level `jobs` list through the same code as
+    # a normal entry, so the string shorthand is valid here too.
+    tav = textwrap.dedent("""
+        knex:
+          jobs:
+            - versions: ">=0.22.0 <1"
+              commands: npm test
+            - versions:
+                include: ">=1 <4"
+                mode: latest-minors
+              commands: npm test
+    """)
+    (tmp_package / ".tav.yml").write_text(tav)
+
+    parser = PackageParser(
+        package_path=tmp_package,
+        bundle_membership=set(),
+        component_owners={},
+    )
+    result = parser.parse()
+
+    assert result is not None
+    assert result["tested_versions"] == [
+        {"package": "knex", "range": ">=0.22.0 <1", "source": ".tav.yml"},
+        {"package": "knex", "range": ">=1 <4", "mode": "latest-minors", "source": ".tav.yml"},
+    ]
+
+
 def test_tav_empty_versions_string_is_skipped(tmp_package):
     write_package_json(
         tmp_package,
