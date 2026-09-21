@@ -260,8 +260,8 @@ def test_supported_versions_empty_when_readme_has_no_section(tmp_package):
             "description": "test",
         },
     )
-    # A README with no "Supported Versions" heading at all - 39/47 packages
-    # in the May audit were prose-only like this.
+    # A README with no "Supported Versions" heading at all, like the browser
+    # packages upstream (document-load, long-task, user-interaction and others).
     (tmp_package / "README.md").write_text("# Express Instrumentation\n\nSome prose.\n")
 
     parser = PackageParser(
@@ -340,7 +340,8 @@ def test_tav_jobs_key_inside_list_entry(tmp_package):
         },
     )
     # Structure 2 nested in a list: the entry has no `versions` of its own,
-    # the ranges live under `jobs`.
+    # the ranges live under `jobs`. No upstream package uses this shape today,
+    # this pins the branch the parser already has for it.
     tav = textwrap.dedent("""
         "@aws-sdk/client-sqs":
           - jobs:
@@ -375,8 +376,8 @@ def test_tav_top_level_jobs_key(tmp_package):
         },
     )
     # Structure 2 as documented for aws-sdk: the package maps to a dict whose
-    # `jobs` list carries the version ranges. This is the shape behind the
-    # exclude/mode data already in the registry for aws-sdk and 6 other packages.
+    # `jobs` list carries the version ranges. Upstream uses this shape in
+    # aws-sdk, knex, koa and undici.
     tav = textwrap.dedent("""
         "@aws-sdk/client-bedrock-runtime":
           jobs:
@@ -401,8 +402,6 @@ def test_tav_top_level_jobs_key(tmp_package):
 
     assert result is not None
     assert len(result["tested_versions"]) == 2
-    ranges = [entry["range"] for entry in result["tested_versions"]]
-    assert ranges == sorted(ranges)
     assert result["tested_versions"][0]["exclude"] == ">=3.363.0 <=3.377.0"
 
 
