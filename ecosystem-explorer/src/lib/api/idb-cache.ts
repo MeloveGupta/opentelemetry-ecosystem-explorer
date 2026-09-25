@@ -16,7 +16,7 @@
 import { openDB, type IDBPDatabase } from "idb";
 
 const DB_NAME = "otel-explorer-cache";
-const DB_VERSION = 26;
+const DB_VERSION = 28;
 const CACHE_EXPIRATION_MS = 24 * 60 * 60 * 1000;
 const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const PRUNE_KEY = "__internal_last_pruned_at";
@@ -82,6 +82,12 @@ export async function initDB(): Promise<IDBPDatabase> {
             }
             db.createObjectStore(storeName, { keyPath: "key" });
           }
+        },
+        // Another tab is upgrading to a newer DB_VERSION. Hold the connection
+        // open and its upgrade never completes, leaving that tab waiting on a
+        // promise that neither resolves nor rejects.
+        blocking() {
+          closeDB();
         },
       });
       dbInstance = db;

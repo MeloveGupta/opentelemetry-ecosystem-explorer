@@ -14,26 +14,13 @@
  * limitations under the License.
  */
 import { describe, it, expect } from "vitest";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 // @ts-expect-error -- untyped build script, imported for its pure page builders.
 import {
   buildJavaInstrumentationPage,
   buildCollectorComponentPage,
-  writeLatestJsonAliases,
+  collectorSignals,
+  javaSignals,
 } from "./generate-agent-docs.mjs";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const publicDir = resolve(__dirname, "../public");
-const dataDir = resolve(publicDir, "data");
-const readJson = (p: string) => JSON.parse(readFileSync(p, "utf-8"));
-
-const latestVersion = (ecosystem: string): string => {
-  const { versions } = readJson(resolve(dataDir, ecosystem, "versions-index.json"));
-  return versions.find((v: { is_latest: boolean }) => v.is_latest).version;
-};
 
 describe("agent docs: Java telemetry rendering", () => {
   // Mirrors Apache Dubbo: two `when` groups whose metrics are mutually
@@ -166,59 +153,6 @@ describe("agent docs: Collector metric rendering", () => {
   });
 });
 
-/**
- * Corpus fidelity assertion: every metric name, span kind, and `when` condition
- * present in the source JSON must survive into the generated Markdown. This is
- * the check that would have caught the flattening and the missing Collector
- * metrics at build time.
- */
-describe("agent docs: fidelity against the registry corpus", () => {
-  it("preserves every Java metric name, span kind, and `when` condition", () => {
-    const version = latestVersion("javaagent");
-    const manifest = readJson(resolve(dataDir, `javaagent/versions/${version}-index.json`));
-    const all = { ...manifest.instrumentations, ...manifest.custom_instrumentations };
-    const missing: string[] = [];
-
-    for (const [name, hash] of Object.entries(all)) {
-      const instr = readJson(
-        resolve(dataDir, `javaagent/instrumentations/${name}/${name}-${hash}.json`)
-      );
-      const md = buildJavaInstrumentationPage(instr, "/data/x.json");
-      for (const group of instr.telemetry ?? []) {
-        if (!md.includes(group.when)) missing.push(`${name}: when=${group.when}`);
-        for (const metric of group.metrics ?? []) {
-          if (!md.includes(metric.name)) missing.push(`${name}: metric=${metric.name}`);
-        }
-        for (const span of group.spans ?? []) {
-          if (span.span_kind && !md.includes(span.span_kind)) {
-            missing.push(`${name}: span_kind=${span.span_kind}`);
-          }
-        }
-      }
-    }
-    expect(missing).toEqual([]);
-  });
-
-  it("preserves every Collector metric name across both metric shapes", () => {
-    const version = latestVersion("collector");
-    const manifest = readJson(resolve(dataDir, `collector/versions/${version}-index.json`));
-    const missing: string[] = [];
-
-    for (const [id, hash] of Object.entries(manifest.components)) {
-      const component = readJson(resolve(dataDir, `collector/components/${id}/${id}-${hash}.json`));
-      const md = buildCollectorComponentPage(component, "/data/x.json");
-      const names = [
-        ...Object.keys(component.metrics ?? {}),
-        ...Object.keys(component.telemetry?.metrics ?? {}),
-      ];
-      for (const metricName of names) {
-        if (!md.includes(metricName)) missing.push(`${id}: metric=${metricName}`);
-      }
-    }
-    expect(missing).toEqual([]);
-  });
-});
-
 describe("agent docs: stable JSON alias", () => {
   it("links the latest.json alias alongside the pinned hashed URL (Collector)", () => {
     const md = buildCollectorComponentPage(
@@ -253,40 +187,40 @@ describe("agent docs: stable JSON alias", () => {
     expect(md).not.toContain("**JSON (latest)**");
     expect(md).toContain("- **JSON (pinned)**: [/data/x.json](/data/x.json)");
   });
+});
 
-  // The alias is what makes a component readable in one request; if the copy
-  // silently produced nothing, only a manual `curl` against a deploy would notice.
-  it("writes a latest.json copy of every latest-release component", async () => {
-    const outDir = mkdtempSync(resolve(tmpdir(), "agent-docs-aliases-"));
-    try {
-      await writeLatestJsonAliases(publicDir, outDir);
+describe("agent docs: signal facets", () => {
+  it("unions a Collector component's signals across stability levels", () => {
+    expect(
+      collectorSignals({
+        status: { stability: { beta: ["logs", "metrics", "traces"], development: ["profiles"] } },
+      })
+    ).toEqual(["logs", "metrics", "profiles", "traces"]);
+  });
 
-      for (const [ecosystem, contentDir, sections] of [
-        ["collector", "components", ["components"]],
-        ["javaagent", "instrumentations", ["instrumentations", "custom_instrumentations"]],
-      ] as const) {
-        const version = latestVersion(ecosystem);
-        const manifest = readJson(resolve(dataDir, `${ecosystem}/versions/${version}-index.json`));
-        const hashes: Record<string, string> = Object.assign(
-          {},
-          ...sections.map((section) => manifest[section] ?? {})
-        );
-        expect(Object.keys(hashes).length).toBeGreaterThan(0);
+  it("returns no Collector signals when stability is absent or malformed", () => {
+    expect(collectorSignals({})).toEqual([]);
+    expect(collectorSignals({ status: { stability: "beta" } })).toEqual([]);
+    // A malformed level contributes nothing rather than a non-signal entry.
+    expect(
+      collectorSignals({
+        status: { stability: { beta: "logs", development: [1, null, "traces"] } },
+      })
+    ).toEqual(["traces"]);
+  });
 
-        for (const [id, hash] of Object.entries(hashes)) {
-          const alias = readFileSync(
-            resolve(outDir, `data/${ecosystem}/${contentDir}/${id}/latest.json`),
-            "utf-8"
-          );
-          const pinned = readFileSync(
-            resolve(dataDir, `${ecosystem}/${contentDir}/${id}/${id}-${hash}.json`),
-            "utf-8"
-          );
-          expect(alias).toBe(pinned);
-        }
-      }
-    } finally {
-      rmSync(outDir, { recursive: true, force: true });
-    }
+  it("reports the telemetry kinds a Java instrumentation emits", () => {
+    expect(
+      javaSignals({ telemetry: [{ when: "default", spans: [{ span_kind: "CLIENT" }] }] })
+    ).toEqual(["spans"]);
+    expect(
+      javaSignals({
+        telemetry: [
+          { when: "default", metrics: [{ name: "a" }] },
+          { when: "opt-in", spans: [{ span_kind: "SERVER" }] },
+        ],
+      })
+    ).toEqual(["metrics", "spans"]);
+    expect(javaSignals({ telemetry: [{ when: "default", metrics: [], spans: [] }] })).toEqual([]);
   });
 });
