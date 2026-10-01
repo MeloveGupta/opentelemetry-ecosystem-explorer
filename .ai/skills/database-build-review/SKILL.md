@@ -38,6 +38,7 @@ Read this first — the review only makes sense against these mechanics.
   - collector key: `components`; blobs in `components/<name>/`.
   - javascript has no ecosystem-wide version. Each package release gets its own manifest,
     `versions/<package>-<v>-index.json`, key `packages` (one entry); blobs in `packages/<name>/`.
+    `diff_build_pr.py` reports its "versions" as `<package>-<v>`.
   - configuration is a schema tree (`versions/<v>.json`), **not** per-component
     content-addressed — the hash-churn analysis below doesn't apply to it; review it by reading the
     schema diff directly. Its starter templates are curated, not generated, and live outside the

@@ -121,7 +121,7 @@ class InventoryManager:
             ValueError: If the file doesn't contain a YAML mapping
         """
         path = self._version_path(package_name, version)
-        with path.open() as f:
+        with path.open(encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         if not isinstance(data, dict):
