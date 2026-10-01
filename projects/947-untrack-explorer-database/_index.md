@@ -4,7 +4,7 @@ issue: 947
 type: index
 phase: meta
 status: in-progress
-last_updated: "2026-10-01"
+last_updated: "2026-09-23"
 ---
 
 > [!NOTE]
@@ -15,9 +15,9 @@ last_updated: "2026-10-01"
 ## Issue #947 — Untrack the explorer database
 
 Stop committing the generated database in
-`ecosystem-explorer/public/data/{javaagent,collector,configuration,javascript}/`. Publish it instead
-as per-ecosystem `.tar.gz` GitHub Release assets, pinned by a committed `data-manifest.json`.
-Merging a manifest bump stays the promotion event that moves the live site.
+`ecosystem-explorer/public/data/{javaagent,collector,configuration}/`. Publish it instead as
+per-ecosystem `.tar.gz` GitHub Release assets, pinned by a committed `data-manifest.json`. Merging a
+manifest bump stays the promotion event that moves the live site.
 
 Tracking issue:
 [#947](https://github.com/open-telemetry/opentelemetry-ecosystem-explorer/issues/947)
