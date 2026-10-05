@@ -16,8 +16,8 @@
 """Analyze the diff produced by a Build Explorer Database run.
 
 Companion to the ``database-build-review`` skill. Diffs the content-addressed database between a
-base ref and a PR/head ref by reading the ``versions/<v>-index.json`` manifests (the source of
-truth for which blob each version uses), and reports:
+base ref and a PR/head ref by reading the ``versions/<v>-index.json`` manifests, or ``index.json``
+for javascript (the source of truth for which blob each version uses), and reports:
 
 * versions added / removed
 * per-component hash churn, split into NEW-VERSION blobs vs HISTORICAL REWRITES (a version that
@@ -181,8 +181,11 @@ def compare(base: dict[str, dict[str, str]], head: dict[str, dict[str, str]]) ->
     report.new_versions = sorted(set(head) - set(base))
     report.removed_versions = sorted(set(base) - set(head))
 
-    for version in report.new_versions:
-        report.new_version_blob_count += len(head[version])
+    # New versions mostly point at blobs that already exist (unchanged components, or javascript
+    # releases that only bumped the version), so count distinct blobs base doesn't reference.
+    base_refs = {(component, digest) for manifest in base.values() for component, digest in manifest.items()}
+    new_refs = {(component, digest) for version in report.new_versions for component, digest in head[version].items()}
+    report.new_version_blob_count = len(new_refs - base_refs)
 
     for version in sorted(set(base) & set(head)):
         base_map, head_map = base[version], head[version]
