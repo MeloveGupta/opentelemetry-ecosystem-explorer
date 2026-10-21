@@ -96,6 +96,47 @@ describe("useJavascriptPackage", () => {
     expect(result.current.error?.message).toContain("not found");
   });
 
+  it.each([
+    {
+      change: "version",
+      from: ["instrumentation-express", "0.69.0"],
+      to: ["instrumentation-express", "0.70.0"],
+    },
+    {
+      change: "name",
+      from: ["instrumentation-express", undefined],
+      to: ["instrumentation-koa", undefined],
+    },
+  ])(
+    "never returns the previous package on the first render after the $change changes",
+    async ({ from, to }) => {
+      // Only the starting package ever loads, so anything shown after the change
+      // can only have come from the previous request.
+      loadPackage.mockImplementation((name: string, version?: string) =>
+        name === from[0] && version === from[1] ? Promise.resolve(express) : new Promise(() => {})
+      );
+
+      // Record every render: act() flushes the effect before result.current can be
+      // read, so asserting on result.current alone would miss the stale render.
+      const renders: Array<{ key: string; data: JavascriptPackage | null; loading: boolean }> = [];
+      const { result, rerender } = renderHook(
+        ({ name, version }) => {
+          const state = useJavascriptPackage(name as string, version);
+          renders.push({ key: `${name}@${version}`, data: state.data, loading: state.loading });
+          return state;
+        },
+        { initialProps: { name: from[0], version: from[1] } }
+      );
+      await waitFor(() => expect(result.current.data).toBe(express));
+
+      rerender({ name: to[0], version: to[1] });
+
+      const afterChange = renders.filter((r) => r.key === `${to[0]}@${to[1]}`);
+      expect(afterChange.length).toBeGreaterThan(0);
+      expect(afterChange.every((r) => r.data === null && r.loading)).toBe(true);
+    }
+  );
+
   it("reloads when the version changes", async () => {
     loadPackage.mockResolvedValue(express);
 

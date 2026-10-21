@@ -51,12 +51,17 @@ export function useJavascriptIndex(): DataState<JavascriptIndex> {
   return state;
 }
 
+const PACKAGE_LOADING: DataState<JavascriptPackage> = { data: null, loading: true, error: null };
+
 /** Loads one release of a package, or its latest release when `version` is omitted. */
 export function useJavascriptPackage(name: string, version?: string): DataState<JavascriptPackage> {
-  const [state, setState] = useState<DataState<JavascriptPackage>>({
-    data: null,
-    loading: true,
-    error: null,
+  // Tag results with the request that produced them. The effect only resets state
+  // after render, so without this the first render after `name` or `version`
+  // changes would return the previous package (same approach as useInstrumentations).
+  const key = `${name}@${version ?? ""}`;
+  const [state, setState] = useState<DataState<JavascriptPackage> & { key: string }>({
+    key,
+    ...PACKAGE_LOADING,
   });
 
   useEffect(() => {
@@ -64,16 +69,15 @@ export function useJavascriptPackage(name: string, version?: string): DataState<
 
     async function loadData() {
       if (!name) {
-        setState({ data: null, loading: false, error: null });
+        setState({ key, data: null, loading: false, error: null });
         return;
       }
 
-      setState({ data: null, loading: true, error: null });
       try {
         const data = await javascriptData.loadPackage(name, version);
-        if (!cancelled) setState({ data, loading: false, error: null });
+        if (!cancelled) setState({ key, data, loading: false, error: null });
       } catch (error) {
-        if (!cancelled) setState({ data: null, loading: false, error: toError(error) });
+        if (!cancelled) setState({ key, data: null, loading: false, error: toError(error) });
       }
     }
 
@@ -82,7 +86,9 @@ export function useJavascriptPackage(name: string, version?: string): DataState<
     return () => {
       cancelled = true;
     };
-  }, [name, version]);
+  }, [key, name, version]);
 
-  return state;
+  if (state.key !== key) return PACKAGE_LOADING;
+  const { data, loading, error } = state;
+  return { data, loading, error };
 }
